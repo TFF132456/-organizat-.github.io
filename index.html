@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI纹样生成器 - 打字创造专属图案</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            padding: 40px 30px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 80px;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .style-option {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        .style-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+        .style-option.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .generate-btn:hover {
+            transform: scale(1.02);
+        }
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result-area {
+            margin-top: 30px;
+            text-align: center;
+            min-height: 300px;
+            display: none;
+        }
+        .result-area.show {
+            display: block;
+        }
+        .generated-image {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .download-btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .tips {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+        .api-key-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ AI纹样生成器</h1>
+        <p class="subtitle">输入文字描述，AI为您创作专属纹样图案</p >
+        
+        <!-- GitHub Pages 优化：API密钥安全警告 -->
+        <div class="api-key-warning" id="apiWarning">
+            ⚠️ 当前为演示模式，如需使用真实AI生成，请在代码中添加API密钥
+        </div>
+
+        <div class="input-group">
+            <label for="textInput">📝 输入纹样描述（越详细效果越好）</label>
+            <textarea id="textInput" placeholder="例如：中式云纹与回纹结合的对称图案，金色线条，适合边框装饰..."></textarea>
+        </div>
+
+        <div class="input-group">
+            <label>🎨 选择纹样风格</label>
+            <div class="style-grid">
+                <div class="style-option active" data-style="chinese">中式传统</div>
+                <div class="style-option" data-style="japanese">日式和风</div>
+                <div class="style-option" data-style="geometric">几何图形</div>
+                <div class="style-option" data-style="watercolor">水彩晕染</div>
+                <div class="style-option" data-style="tribal">部落图腾</div>
+                <div class="style-option" data-style="floral">花卉植物</div>
+                <div class="style-option" data-style="abstract">抽象艺术</div>
+                <div class="style-option" data-style="minimalist">极简线条</div>
+            </div>
+        </div>
+
+        <button class="generate-btn" onclick="generatePattern()">🚀 生成专属纹样</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>AI正在创作中，约需5-10秒...</p >
+        </div>
+
+        <div class="result-area" id="resultArea">
+            < img class="generated-image" id="generatedImage" alt="生成的纹样">
+            <div style="margin-top: 20px;">
+                <button class="download-btn" onclick="downloadImage()">📥 下载纹样</button>
+                <button class="download-btn" style="background: #2196F3;" onclick="regenerate()">🔄 重新生成</button>
+            </div>
+        </div>
+
+        <div class="tips">
+            💡 **使用技巧**：<br>
+            1. 描述越详细，效果越好（如颜色、线条粗细、对称方式）<br>
+            2. 可指定用途：纹身、布料、包装、边框等<br>
+            3. 支持中英文混合描述<br>
+            4. 当前为演示模式，点击按钮会生成随机纹样示例
+        </div>
+    </div>
+
+    <script>
+        let selectedStyle = 'chinese';
+        
+        // 风格选择
+        document.querySelectorAll('.style-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.style-option').forEach(o => o.classList.remove('active'));
+                this.classList.add('active');
+                selectedStyle = this.dataset.style;
+            });
+        });
+
+        // 生成纹样
+        async function generatePattern() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                alert('请输入纹样描述！');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            const resultArea = document.getElementById('resultArea');
+            
+            loading.classList.add('show');
+            resultArea.classList.remove('show');
+
+            try {
+                // GitHub Pages 优化：优先使用免费无密钥API
+                // 如果需要真实生成，请注册以下平台获取免费API密钥：
+                // 1. Stability AI: https://platform.stability.ai/ (25次/天免费)
+                // 2. Leap AI: https://www.leap.ai/ (免费额度)
+                
+                // 演示模式：使用随机图片API（无需密钥）
+                // 实际部署时，可替换为真实API调用
+                
+                // 模拟API调用延迟
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // 生成随机种子，确保每次不同
+                const seed = Date.now() + Math.random();
+                const stylePrompt = getStylePrompt(selectedStyle);
+                
+                // 使用随机图片服务作为演示
+                // 注意：实际项目中应替换为真实的AI生成API
+                const demoImages = [
+                    `https://picsum.photos/seed/${seed}/400/400`,
+                    `https://picsum.photos/seed/${seed + 1}/400/400`,
+                    `https://picsum.photos/seed/${seed + 2}/400/400`
+                ];
+                
+                // 根据风格选择不同的图片
+                const styleIndex = ['chinese', 'japanese', 'geometric', 'watercolor', 'tribal', 'floral', 'abstract', 'minimalist'].indexOf(selectedStyle);
+                const imageUrl = demoImages[styleIndex % demoImages.length];
+                
+                displayResult(imageUrl);
+                
+            } catch (error) {
+                console.error('生成失败:', error);
+                // 备用方案
+                const fallbackImage = `https://picsum.photos/seed/${Date.now()}/400/400`;
+                displayResult(fallbackImage);
+            }
+        }
+
+        function getStylePrompt(style) {
+            const styleMap = {
+                chinese: 'traditional chinese pattern, golden lines, symmetrical, elegant',
+                japanese: 'japanese style, minimal, elegant, sakura wave',
+                geometric: 'geometric pattern, abstract, modern, clean lines',
+                watercolor: 'watercolor texture, artistic, soft edges, flowing',
+                tribal: 'tribal tattoo style, bold black lines, primitive',
+                floral: 'floral botanical pattern, natural, delicate',
+                abstract: 'abstract art, creative, unique, colorful',
+                minimalist: 'minimalist line art, simple, clean, monochrome'
+            };
+            return styleMap[style];
+        }
+
+        function displayResult(imageUrl) {
+            const loading = document.getElementById('loading');
+            const resultArea = document.getElementById('resultArea');
+            const generatedImage = document.getElementById('generatedImage');
+            
+            loading.classList.remove('show');
+            generatedImage.src = imageUrl;
+            resultArea.classList.add('show');
+        }
+
+        function downloadImage() {
+            const image = document.getElementById('generatedImage');
+            const link = document.createElement('a');
+            link.href = image.src;
+            link.download = `纹样_${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function regenerate() {
+            generatePattern();
+        }
+
+        // 隐藏API警告（如果用户添加了密钥）
+        // 如需使用真实API，请取消下方注释并配置
+        // if (typeof API_KEY !== 'undefined' && API_KEY !== 'YOUR_API_KEY') {
+        //     document.getElementById('apiWarning').style.display = 'none';
+        // }
+
+        // 回车键生成（Ctrl+Enter）
+        document.getElementById('textInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                generatePattern();
+            }
+        });
+    </script>
+</body>
+</html>
